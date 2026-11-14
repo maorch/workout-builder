@@ -441,7 +441,9 @@
     {id:"legCurlLying", name:"Lying Leg Curl Machine"},
     {id:"dumbbells", name:"Dumbbells"},
     {id:"barbell", name:"Barbells with Olympic Plates"},
-    {id:"kettlebell", name:"Kettlebell"}
+    {id:"kettlebell", name:"Kettlebell"},
+    {id:"rings", name:"Gymnastic Rings"},
+    {id:"stabilityBall", name:"Stability Ball"}
   ];
 
   var DEFAULT_TIPS = ["Focus on mind-muscle connection.","Progressive overload: add weight or reps over time.","Quality over quantity.","Stay consistent and recover well."];
@@ -685,6 +687,19 @@
   if(!state.previousPlans) state.previousPlans = [];
   if(!state.exerciseHistory) state.exerciseHistory = {};
   if(!state.savedPlans) state.savedPlans = [];
+  (function migrateEquipment(){
+    var haveIds = {};
+    state.equipment.forEach(function(e){ haveIds[e.id] = true; });
+    var added = false;
+    DEFAULT_EQUIPMENT.forEach(function(def){
+      var alreadyHasByName = state.equipment.some(function(e){ return e.name === def.name; });
+      if(!haveIds[def.id] && !alreadyHasByName && (def.id === "rings" || def.id === "stabilityBall")){
+        state.equipment.push({id:def.id, name:def.name});
+        added = true;
+      }
+    });
+    if(added) save();
+  })();
 
   function save(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
@@ -761,6 +776,80 @@
     save();
     renderSettingsOverlay();
     toast("Deleted \"" + plan.name + "\"");
+  }
+
+  function buildCoachPlanDays(){
+    var ex = function(name, sets, repsLo, repsHi, muscle, cue){
+      return {name:name, sets:sets, repsLo:repsLo, repsHi:repsHi, muscle:muscle||"", cue:cue||""};
+    };
+    return [
+      {
+        id: uid(), num: 1, title: "PUSH & ROTATIONAL POWER", subtitle: "New angles, zero repeats from your log.",
+        category: "push", warmupTime: "5–10 min", warmupNote: "Treadmill incline walk",
+        restNote: "2–3 min between compound sets · 60–90 sec between isolation sets",
+        exercises: [
+          ex("Smith Machine Bench Press", 4, 6, 8, "Chest", "Flat bench under Smith bar. 2-sec pause at chest, no bounce."),
+          ex("Dumbbell Cuban Press", 3, 8, 10, "Shoulders", "Upright row into external rotation into overhead press. Light weight, control the sequence."),
+          ex("Dumbbell Pullover", 3, 12, 15, "Chest/Lats", "Lie on bench, arc the dumbbell behind your head for a deep stretch."),
+          ex("Kettlebell Single-Arm Overhead Press", 3, 8, 10, "Shoulders", "Offset load — resist leaning sideways."),
+          ex("Barbell JM Press", 3, 8, 10, "Triceps", "Hybrid close-grip bench/skull-crusher. Start light, it's technical."),
+          ex("Cable Crossover Single-Arm Low-to-High Fly", 3, 10, 12, "Chest", "Low pulley, step forward, bring handle up and across body."),
+          ex("Dumbbell Tate Press", 3, 10, 12, "Triceps", "Elbows out, lower dumbbells to chest level.")
+        ],
+        finisher: {name:"Treadmill Sprint Ladder", detail:"30s/60s/90s hard, equal rest, incline 8%"},
+        tips: DEFAULT_TIPS.slice(),
+        cooldownTime: "10–15 min", cooldownNote: "Incline walking",
+        log: {date:null, sets:{}, weights:{}}
+      },
+      {
+        id: uid(), num: 2, title: "PULL & UNILATERAL STRENGTH", subtitle: "New angles, zero repeats from your log.",
+        category: "pull", warmupTime: "5–10 min", warmupNote: "Treadmill incline walk",
+        restNote: "2–3 min between compound sets · 60–90 sec between isolation sets",
+        exercises: [
+          ex("Single-Arm Lat Pulldown", 4, 8, 10, "Back", "Anti-rotation vertical pull, one arm at a time."),
+          ex("Wide-Grip Seated Cable Row", 3, 8, 10, "Back", "Constant tension throughout — no lockout rest point."),
+          ex("Ring Row", 3, 10, 15, "Back", "More horizontal body = harder. Keep hips in line with shoulders and ankles."),
+          ex("Dumbbell Upright Row", 3, 10, 12, "Traps/Shoulders", "Elbows lead, keep them at or below shoulder height."),
+          ex("Standing Cable Hip Extension", 3, 12, 15, "Glutes", "Ankle cuff on low cable, kick one leg straight back."),
+          ex("Dumbbell Waiter's Curl", 3, 10, 12, "Biceps", "Hold dumbbell under one end, rotating curl path."),
+          ex("Kettlebell Halo", 3, 8, 8, "Shoulders/Core", "Circle the kettlebell around your head, both directions.")
+        ],
+        finisher: {name:"Dead-Hang Scap Pulls", detail:"On the Lat Pulldown bar, 2× max hold"},
+        tips: DEFAULT_TIPS.slice(),
+        cooldownTime: "10–15 min", cooldownNote: "Incline walking",
+        log: {date:null, sets:{}, weights:{}}
+      },
+      {
+        id: uid(), num: 3, title: "LEGS & CORE", subtitle: "Knee-friendly — hip-dominant over knee-dominant.",
+        category: "legs", warmupTime: "5–10 min", warmupNote: "Treadmill incline walk",
+        restNote: "2–3 min between compound sets · 60–90 sec between isolation sets",
+        exercises: [
+          ex("Barbell Hip Thrust", 4, 8, 10, "Glutes", "Upper back on bench, hips drive up. Knee stays at a fixed, gentle bend."),
+          ex("Single-Leg Glute Bridge", 3, 12, 15, "Glutes", "Knee fixed, one leg at a time. Add a dumbbell on the hip once easy."),
+          ex("Single-Leg Leg Press", 3, 10, 12, "Quads", "Same machine, one leg at a time — harder than it looks."),
+          ex("Stability Ball Hamstring Curl", 3, 12, 15, "Hamstrings", "Bodyweight, hips bridged, feet on ball, curl toward glutes."),
+          ex("Standing Barbell Calf Raise", 3, 15, 20, "Calves", "Back-rack loaded, full stretch and squeeze."),
+          ex("Hanging Windshield Wipers", 3, 8, 8, "Core", "Core move, not legs — hips stay relatively passive."),
+          ex("Cable Anti-Rotation Press (Pallof Press)", 3, 10, 10, "Core", "Standing, press cable straight out, resist rotating.")
+        ],
+        finisher: {name:"Heavy Farmer's Carry", detail:"2 rounds for max distance"},
+        tips: DEFAULT_TIPS.slice(),
+        cooldownTime: "10–15 min", cooldownNote: "Incline walking",
+        log: {date:null, sets:{}, weights:{}}
+      }
+    ];
+  }
+
+  function loadCoachPlan(){
+    snapshotPlan();
+    state.days = buildCoachPlanDays();
+    state.settings.daysPerWeek = 3;
+    state.activeId = state.days[0].id;
+    editMode = false;
+    save();
+    closeSettings();
+    renderAll();
+    toast("Coach's 3-day plan loaded 💪");
   }
 
   function regenerateDay(day){
@@ -1721,6 +1810,15 @@
     var suggestBtn = el("button","suggest-btn", "Suggest a " + state.settings.daysPerWeek + "-day program");
     suggestBtn.addEventListener("click", suggestProgram);
     progCard.appendChild(suggestBtn);
+
+    var coachBtn = el("button","suggest-btn", "Load Coach's 3-Day Plan (Push/Pull/Legs)");
+    coachBtn.style.background = "var(--ink)"; coachBtn.style.color = "var(--paper)";
+    coachBtn.addEventListener("click", function(){
+      if(window.confirm("This replaces your current plan with the new Push/Pull/Legs program. Your current plan will be kept in the one-step undo. Continue?")){
+        loadCoachPlan();
+      }
+    });
+    progCard.appendChild(coachBtn);
 
     if(state.previousPlans.length){
       var restoreBtn = el("button","restore-link", "↶ Back to previous plan (" + state.previousPlans.length + " saved)");
