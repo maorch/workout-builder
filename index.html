@@ -410,6 +410,7 @@
 (function(){
   "use strict";
   var STORAGE_KEY = "setwork.v1";
+  var APP_VERSION = "2026.11.14-3 (Coach's Plan + Rings + Version Info)";
 
   function uid(){ return Math.random().toString(36).slice(2,9); }
   function todayStr(){
@@ -1909,6 +1910,13 @@
     logCard.appendChild(preview);
 
     content.appendChild(logCard);
+
+    var versionNote = el("p","empty-note", "Setwork version " + APP_VERSION);
+    versionNote.style.textAlign = "center";
+    versionNote.style.marginTop = "6px";
+    versionNote.style.opacity = "0.6";
+    content.appendChild(versionNote);
+
     overlay.appendChild(content);
     layer.appendChild(overlay);
   }
@@ -1919,6 +1927,7 @@
   }
 
   document.getElementById("gearBtn").addEventListener("click", openSettings);
+  console.log("Setwork version " + APP_VERSION);
   renderAll();
 })();
 </script>
