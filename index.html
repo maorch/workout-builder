@@ -1,7 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
 <title>Setwork</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -311,6 +308,23 @@
   }
   .restore-link{ display:block; width:100%; text-align:center; color:var(--ink-soft); font-size:13px; font-weight:600; padding:6px;}
 
+  .saved-plans-list{ display:flex; flex-direction:column; gap:8px; margin-top:12px;}
+  .saved-plan-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+  }
+  .saved-plan-info{ min-width:0;}
+  .saved-plan-name{ font-size:13.5px; font-weight:700; color:var(--ink);}
+  .saved-plan-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+  .saved-plan-btns{ display:flex; align-items:center; gap:8px; flex:0 0 auto;}
+  .saved-plan-load{
+    background:var(--ink); color:var(--paper); font-weight:700; font-size:12.5px; padding:7px 14px; border-radius:8px;
+  }
+  .saved-plan-del{
+    width:22px; height:22px; border-radius:50%; background:var(--line); color:var(--ink-soft);
+    font-size:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+
   .hero-actions{ display:flex; gap:6px; flex:0 0 auto;}
   .regen-btn{
     width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.08);
@@ -370,8 +384,7 @@
   .sheet-muscle svg{ width:100%; height:auto; max-height:28vh;}
   .muscle-sheet-label{ font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--ember);}
 </style>
-</head>
-<body>
+
 <div class="topbar">
   <div class="topbar-row">
     <div class="brand"><span class="dot"></span><span class="display">SETWORK</span></div>
@@ -661,7 +674,7 @@
         if(parsed && Array.isArray(parsed.days) && parsed.days.length) return parsed;
       }
     }catch(e){}
-    return { days: [defaultDay()], activeId: null, history: [], equipment: DEFAULT_EQUIPMENT.slice(), settings: {daysPerWeek:3}, previousPlans: [], exerciseHistory: {} };
+    return { days: [defaultDay()], activeId: null, history: [], equipment: DEFAULT_EQUIPMENT.slice(), settings: {daysPerWeek:3}, previousPlans: [], exerciseHistory: {}, savedPlans: [] };
   }
   var state = load();
   if(!state.activeId) state.activeId = state.days[0].id;
@@ -671,6 +684,7 @@
   if(!state.settings.daysPerWeek) state.settings.daysPerWeek = 3;
   if(!state.previousPlans) state.previousPlans = [];
   if(!state.exerciseHistory) state.exerciseHistory = {};
+  if(!state.savedPlans) state.savedPlans = [];
 
   function save(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
@@ -707,6 +721,46 @@
     closeSettings();
     renderAll();
     toast("Restored previous plan");
+  }
+
+  function savePlanAs(name){
+    name = (name||"").trim();
+    if(!name) return;
+    state.savedPlans.push({
+      id: uid(),
+      name: name,
+      days: JSON.parse(JSON.stringify(state.days)),
+      daysPerWeek: state.settings.daysPerWeek,
+      activeId: state.activeId,
+      createdAt: todayStr()
+    });
+    save();
+    renderSettingsOverlay();
+    toast("Saved \"" + name + "\"");
+  }
+
+  function loadSavedPlan(id){
+    var plan = state.savedPlans.filter(function(p){ return p.id===id; })[0];
+    if(!plan) return;
+    snapshotPlan();
+    state.days = JSON.parse(JSON.stringify(plan.days));
+    state.settings.daysPerWeek = plan.daysPerWeek || state.settings.daysPerWeek;
+    state.activeId = state.days.some(function(d){return d.id===plan.activeId;}) ? plan.activeId : state.days[0].id;
+    editMode = false;
+    save();
+    closeSettings();
+    renderAll();
+    toast("Loaded \"" + plan.name + "\"");
+  }
+
+  function deleteSavedPlan(id){
+    var plan = state.savedPlans.filter(function(p){ return p.id===id; })[0];
+    if(!plan) return;
+    if(!window.confirm("Delete saved plan \"" + plan.name + "\"? This can't be undone.")) return;
+    state.savedPlans = state.savedPlans.filter(function(p){ return p.id!==id; });
+    save();
+    renderSettingsOverlay();
+    toast("Deleted \"" + plan.name + "\"");
   }
 
   function regenerateDay(day){
@@ -1676,6 +1730,49 @@
 
     content.appendChild(progCard);
 
+    content.appendChild(el("div","section-label","Saved plans"));
+    var savedCard = el("div","simple-card");
+    savedCard.appendChild(el("p","empty-note","Save your current plan by name so you can switch back to it later, even after generating a new one."));
+
+    var saveRow = el("div","add-equip-row");
+    var saveInput = document.createElement("input");
+    saveInput.placeholder = "Name this plan (e.g. Push Pull Legs)";
+    var saveBtn = el("button","add-equip-btn","Save");
+    function doSave(){
+      if(!saveInput.value.trim()) return;
+      savePlanAs(saveInput.value);
+      saveInput.value = "";
+    }
+    saveBtn.addEventListener("click", doSave);
+    saveInput.addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); doSave(); } });
+    saveRow.appendChild(saveInput); saveRow.appendChild(saveBtn);
+    savedCard.appendChild(saveRow);
+
+    if(state.savedPlans.length){
+      var savedList = el("div","saved-plans-list");
+      state.savedPlans.slice().reverse().forEach(function(plan){
+        var row = el("div","saved-plan-row");
+        var info = el("div","saved-plan-info");
+        info.appendChild(el("div","saved-plan-name", escapeHtml(plan.name)));
+        info.appendChild(el("div","saved-plan-meta", (plan.days||[]).length + "-day plan · saved " + plan.createdAt));
+        row.appendChild(info);
+        var btns = el("div","saved-plan-btns");
+        var loadBtn = el("button","saved-plan-load","Load");
+        loadBtn.addEventListener("click", function(){ loadSavedPlan(plan.id); });
+        var delBtn = el("button","saved-plan-del","✕");
+        delBtn.setAttribute("aria-label","Delete " + plan.name);
+        delBtn.addEventListener("click", function(){ deleteSavedPlan(plan.id); });
+        btns.appendChild(loadBtn); btns.appendChild(delBtn);
+        row.appendChild(btns);
+        savedList.appendChild(row);
+      });
+      savedCard.appendChild(savedList);
+    } else {
+      savedCard.appendChild(el("p","empty-note","No saved plans yet."));
+    }
+
+    content.appendChild(savedCard);
+
     content.appendChild(el("div","section-label","Your training log"));
     var logCard = el("div","simple-card");
     var sessionCount = state.history.length;
@@ -1727,5 +1824,5 @@
   renderAll();
 })();
 </script>
-</body>
-</html>
+
+</body></html>
